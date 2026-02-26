@@ -1,10 +1,3 @@
-/**
- * claw-search - Self-hosted private web search for OpenClaw
- * Using SearXNG for privacy-focused search results
- * 
- * @version 1.2.0
- * @license MIT
- */
 
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 
@@ -34,10 +27,7 @@ interface SearchParams {
 export default function (api: OpenClawPluginApi) {
   const pluginConfig: PluginConfig = api.config.plugins?.entries?.['openclaw-searxng-plugin']?.config || {};
 
-  /**
-   * Validate and sanitize search query
-   */
-  function validateQuery(query: string): string {
+    function validateQuery(query: string): string {
     if (!query || typeof query !== 'string') {
       throw new Error('Search query must be a non-empty string');
     }
@@ -51,10 +41,7 @@ export default function (api: OpenClawPluginApi) {
     return trimmed;
   }
 
-  /**
-   * Build search URL with all parameters
-   */
-  function buildSearchUrl(params: {
+    function buildSearchUrl(params: {
     baseUrl: string;
     query: string;
     category: string;
@@ -68,12 +55,10 @@ export default function (api: OpenClawPluginApi) {
       `format=json&` +
       `language=${language}`;
 
-    // Add category if not general
     if (category !== 'general') {
       url += `&categories=${category}`;
     }
 
-    // Add safesearch for general/news searches
     if (category === 'general' || category === 'news') {
       url += `&safesearch=${safesearch}`;
     }
@@ -81,10 +66,7 @@ export default function (api: OpenClawPluginApi) {
     return url;
   }
 
-  /**
-   * Format search results into readable text
-   */
-  function formatResults(
+    function formatResults(
     results: any[],
     query: string,
     formatResult: (result: any, idx: number) => string,
@@ -92,7 +74,6 @@ export default function (api: OpenClawPluginApi) {
   ): string {
     let text = '';
 
-    // Add direct answer if available (prioritize for quick answers)
     if (data.answers && data.answers.length > 0) {
       const answer = typeof data.answers[0] === 'string' 
         ? data.answers[0] 
@@ -100,7 +81,6 @@ export default function (api: OpenClawPluginApi) {
       text += `💡 **Direct answer:**\n${answer}\n\n`;
     }
 
-    // Add search results
     if (results.length === 0) {
       text += `No results found for "${query}".\n\n`;
       text += `Suggestions:\n`;
@@ -119,12 +99,10 @@ export default function (api: OpenClawPluginApi) {
       try {
         text += formatResult(result, idx);
       } catch (err) {
-        // Skip malformed results
         console.error(`Failed to format result ${idx}:`, err);
       }
     });
 
-    // Add suggestions if available
     if (data.suggestions && data.suggestions.length > 0) {
       text += `\n**Related searches:** ${data.suggestions.join(', ')}`;
     }
@@ -132,27 +110,18 @@ export default function (api: OpenClawPluginApi) {
     return text;
   }
 
-  /**
-   * Generic search function - DRY principle
-   * 
-   * @param params - Search parameters
-   * @returns Search results formatted as text
-   */
-  async function performSearch(params: SearchParams) {
+    async function performSearch(params: SearchParams) {
     const { query, count, category, formatResult } = params;
     
     try {
-      // Validate input
       const validatedQuery = validateQuery(query);
       
-      // Get configuration with defaults
       const baseUrl = pluginConfig.baseUrl || 'http://localhost:8888';
       const maxResults = Math.min(Math.max(count || pluginConfig.maxResults || 10, 1), 100);
       const language = pluginConfig.language || 'en';
       const safesearch = pluginConfig.safesearch ?? 0;
       const timeout = (pluginConfig.timeout || 15) * 1000;
 
-      // Build search URL
       const searchUrl = buildSearchUrl({
         baseUrl,
         query: validatedQuery,
@@ -161,7 +130,6 @@ export default function (api: OpenClawPluginApi) {
         safesearch
       });
 
-      // Perform search with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -199,7 +167,6 @@ export default function (api: OpenClawPluginApi) {
       }
 
     } catch (err: any) {
-      // Detailed error messages
       let errorMsg = 'Search failed: ';
       
       if (err.name === 'AbortError') {
@@ -218,13 +185,7 @@ export default function (api: OpenClawPluginApi) {
     }
   }
 
-  /**
-   * Create a search tool from configuration
-   * 
-   * @param config - Tool configuration
-   * @returns Tool registration object
-   */
-  function createSearchTool(config: SearchToolConfig) {
+    function createSearchTool(config: SearchToolConfig) {
     const baseParams: any = {
       type: 'object',
       properties: {
@@ -243,7 +204,6 @@ export default function (api: OpenClawPluginApi) {
       required: ['query']
     };
 
-    // Merge additional parameters if provided
     if (config.additionalParams) {
       Object.assign(baseParams.properties, config.additionalParams);
     }
@@ -253,17 +213,14 @@ export default function (api: OpenClawPluginApi) {
       description: config.description,
       parameters: baseParams,
       async execute(_id: string, params: any) {
-        // Auto-enhance query for search_repos
         let query = params.query;
         if (config.name === 'search_repos' && !query.includes('site:')) {
-          // Smart platform detection
           const lowerQuery = query.toLowerCase();
           if (lowerQuery.includes('gitlab')) {
             query = `${query} site:gitlab.com`;
           } else if (lowerQuery.includes('bitbucket')) {
             query = `${query} site:bitbucket.org`;
           } else {
-            // Default to GitHub (most common)
             query = `${query} site:github.com`;
           }
         }
@@ -278,17 +235,7 @@ export default function (api: OpenClawPluginApi) {
     };
   }
 
-  /**
-   * Search tool configurations
-   * 
-   * Adding a new search type:
-   * 1. Add a new object to this array
-   * 2. Specify name, description, and SearXNG category
-   * 3. Provide a formatResult function
-   * That's it! The factory pattern handles the rest.
-   */
-  const searchTools: SearchToolConfig[] = [
-    // General web search
+    const searchTools: SearchToolConfig[] = [
     {
       name: 'search',
       description: 'Search the web using your self-hosted SearXNG instance. Returns web results from multiple search engines.',
@@ -304,10 +251,9 @@ export default function (api: OpenClawPluginApi) {
       }
     },
 
-    // News search
     {
       name: 'search_news',
-      description: 'Search for news articles. NOTE: Chinese news coverage is limited. For better Chinese news results, consider using the "search" tool instead.',
+      description: 'Search for news articles.',
       category: 'news',
       formatResult: (result, idx) => {
         let text = `${idx + 1}. **${result.title}**\n`;
@@ -317,7 +263,6 @@ export default function (api: OpenClawPluginApi) {
             const date = new Date(result.publishedDate);
             text += `   📅 ${date.toLocaleDateString()}\n`;
           } catch {
-            // Skip invalid dates
           }
         }
         if (result.content) {
@@ -327,7 +272,6 @@ export default function (api: OpenClawPluginApi) {
       }
     },
 
-    // Image search
     {
       name: 'search_images',
       description: 'Search for images using your SearXNG instance. Returns image URLs and metadata.',
@@ -345,7 +289,6 @@ export default function (api: OpenClawPluginApi) {
       }
     },
 
-    // Video search
     {
       name: 'search_videos',
       description: 'Search for videos from YouTube, Vimeo, and other platforms. Returns video URLs and metadata.',
@@ -361,7 +304,6 @@ export default function (api: OpenClawPluginApi) {
             const date = new Date(result.publishedDate);
             text += `   📅 ${date.toLocaleDateString()}\n`;
           } catch {
-            // Skip invalid dates
           }
         }
         if (result.content) {
@@ -371,7 +313,6 @@ export default function (api: OpenClawPluginApi) {
       }
     },
 
-    // Code/Repository search
     {
       name: 'search_repos',
       description: 'Search for code repositories. Automatically detects platform: GitHub (default), GitLab (if query contains "gitlab"), or Bitbucket (if query contains "bitbucket"). Site operator is added internally.',
@@ -386,7 +327,6 @@ export default function (api: OpenClawPluginApi) {
       }
     },
 
-    // Quick answer
     {
       name: 'quick_answer',
       description: 'Get a direct answer to a factual question. Best for "what is", "who is", "when did" type questions.',
@@ -402,10 +342,7 @@ export default function (api: OpenClawPluginApi) {
     }
   ];
 
-  /**
-   * Register all search tools
-   */
-  searchTools.forEach(config => {
+    searchTools.forEach(config => {
     api.registerTool(createSearchTool(config));
   });
 }

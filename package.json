@@ -10,10 +10,7 @@
     "search",
     "searxng",
     "privacy",
-    "typescript",
-    "chinese",
-    "bilibili",
-    "baidu"
+    "typescript"
   ],
   "author": "claw-search contributors",
   "repository": {
